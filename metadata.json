@@ -1,0 +1,6 @@
+{
+  "name": "My Robot Portfolio",
+  "description": "An interactive, real-time-synced robot portfolio showcase where administrators can edit text content and upload images directly through the web interface.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

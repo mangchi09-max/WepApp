@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "HeroContent": {
+      "title": "Hero Content",
+      "description": "Defines the text and image structure for the landing / hero section",
+      "type": "object",
+      "properties": {
+        "tag": { "type": "string", "description": "The system section indicator tag, e.g. 'SYS.INIT // STUDENT PROFILE'" },
+        "title": { "type": "string", "description": "Display-level header title text with line-breaks" },
+        "highlight": { "type": "string", "description": "Short summary or key phrase of the description" },
+        "description": { "type": "string", "description": "A long description paragraph detailing interests" },
+        "descriptionPara2": { "type": "string", "description": "Secondary highlight or conclusion statement" },
+        "imageUrl": { "type": "string", "description": "Firebase Storage or external URL to the main hero graphic" }
+      },
+      "required": ["tag", "title", "highlight", "description", "imageUrl"]
+    },
+    "ExperienceItem": {
+      "title": "Experience Item",
+      "description": "Defines a timeline experience entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "title": { "type": "string", "description": "The title of the experience or event, e.g. '2025 Robot Challenge: SUMO'" },
+        "description": { "type": "string", "description": "Description of the role and team name" },
+        "sortOrder": { "type": "integer", "description": "Sorting sequence order" }
+      },
+      "required": ["id", "title", "description", "sortOrder"]
+    },
+    "SkillItem": {
+      "title": "Skill Item",
+      "description": "Defines a conceptual chip representing a robot programming/building skill",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Name of the skill, e.g. 'C CODING'" },
+        "iconName": { "type": "string", "description": "Lucide icon string name, e.g. 'code', 'terminal'" },
+        "sortOrder": { "type": "integer", "description": "Sorting sequence order" }
+      },
+      "required": ["id", "name", "sortOrder"]
+    },
+    "AwardItem": {
+      "title": "Award Item",
+      "description": "Defines an award or certificate item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "title": { "type": "string", "description": "Award name, e.g. '2026 RoboCup Korea Open : Super team 1st Place'" },
+        "category": { "type": "string", "description": "E.g., 'Award'" },
+        "sortOrder": { "type": "integer", "description": "Sorting sequence order" }
+      },
+      "required": ["id", "title", "sortOrder"]
+    },
+    "ProjectItem": {
+      "title": "Project Item",
+      "description": "Defines a single portfolio card displaying a developed robotic project",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "code": { "type": "string", "description": "Product code label, e.g. 'SN-001'" },
+        "title": { "type": "string", "description": "Project title, e.g. 'Line Tracing Robot'" },
+        "description": { "type": "string", "description": "Short explanation of the robotic task" },
+        "imageUrl": { "type": "string", "description": "Firebase Storage or external URL to the project preview cover" },
+        "technologies": { "type": "array", "description": "Technologies tag list" },
+        "sortOrder": { "type": "integer", "description": "Sorting sequence order" }
+      },
+      "required": ["id", "code", "title", "description", "imageUrl", "technologies", "sortOrder"]
+    }
+  },
+  "firestore": {
+    "/siteContent/hero": {
+      "schema": "HeroContent",
+      "description": "Master document representing hero text and branding image details"
+    },
+    "/experiences/{experienceId}": {
+      "schema": "ExperienceItem",
+      "description": "Collection of timeline experiences"
+    },
+    "/skills/{skillId}": {
+      "schema": "SkillItem",
+      "description": "Collection of expertise tags"
+    },
+    "/awards/{awardId}": {
+      "schema": "AwardItem",
+      "description": "Collection of achievements and tournament rankings"
+    },
+    "/projects/{projectId}": {
+      "schema": "ProjectItem",
+      "description": "Collection of actual showcased robot works with details and images"
+    }
+  }
+}
