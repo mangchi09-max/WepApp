@@ -16,6 +16,13 @@ async function startServer() {
   const firebaseApp = initializeApp(firebaseConfig);
   const storage = getStorage(firebaseApp);
 
+  // Set up local folder for static upload fallback
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
   // Body parsers
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -28,7 +35,7 @@ async function startServer() {
     }
   });
 
-  // API upload route - server-to-server to avoid CORS issues!
+  // API upload route - server-to-server with robust local fallback!
   app.post("/api/upload", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
@@ -36,15 +43,29 @@ async function startServer() {
       }
 
       const fileName = `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-      const storageRef = ref(storage, `robot_portfolio_images/${fileName}`);
 
-      // Perform upload using the buffer
-      const snapshot = await uploadBytes(storageRef, req.file.buffer, {
-        contentType: req.file.mimetype,
-      });
+      try {
+        console.log("Attempting Firebase Storage upload for", fileName);
+        const storageRef = ref(storage, `robot_portfolio_images/${fileName}`);
 
-      const downloadUrl = await getDownloadURL(snapshot.ref);
-      return res.json({ url: downloadUrl });
+        // Perform upload using the buffer
+        const snapshot = await uploadBytes(storageRef, req.file.buffer, {
+          contentType: req.file.mimetype,
+        });
+
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        console.log("Firebase Storage upload successful!", downloadUrl);
+        return res.json({ url: downloadUrl });
+      } catch (fbError: any) {
+        console.warn("Firebase Storage upload failed (GCS bucket might not be initialized/configured):", fbError.message || fbError);
+        console.log("Falling back to local disk storage upload...");
+
+        const localFilePath = path.join(uploadsDir, fileName);
+        fs.writeFileSync(localFilePath, req.file.buffer);
+
+        console.log("Local upload successful. Serving via /uploads/", fileName);
+        return res.json({ url: `/uploads/${fileName}` });
+      }
     } catch (error: any) {
       console.error("Server-side image upload error:", error);
       return res.status(500).json({ error: error.message || "Failed to upload image" });
