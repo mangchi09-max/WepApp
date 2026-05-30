@@ -271,12 +271,22 @@ export default function EditModal({
                 />
               </div>
 
-              <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">Hero Model/Graphic Image</label>
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block">Hero Model/Graphic Image</label>
                 <ImageUpload 
                   currentUrl={heroForm.imageUrl}
                   onUploadSuccess={url => setHeroForm({ ...heroForm, imageUrl: url })}
                 />
+                <div className="text-[11px] text-on-surface-variant font-mono mt-1">
+                  <span>또는 직접 이미지 URL 주소 입력:</span>
+                  <input 
+                    type="text" 
+                    value={heroForm.imageUrl}
+                    onChange={e => setHeroForm({ ...heroForm, imageUrl: e.target.value })}
+                    className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-xs rounded-lg p-2 outline-none mt-1"
+                    placeholder="https://example.com/image.png"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -448,12 +458,22 @@ export default function EditModal({
                 />
               </div>
 
-              <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">로봇 사진 또는 설계 도식화 이미지</label>
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block">로봇 사진 또는 설계 도식화 이미지</label>
                 <ImageUpload 
                   currentUrl={projectForm.imageUrl || ''}
                   onUploadSuccess={url => setProjectForm({ ...projectForm, imageUrl: url })}
                 />
+                <div className="text-[11px] text-on-surface-variant font-mono mt-1">
+                  <span>또는 직접 이미지 URL 주소 입력:</span>
+                  <input 
+                    type="text" 
+                    value={projectForm.imageUrl || ''}
+                    onChange={e => setProjectForm({ ...projectForm, imageUrl: e.target.value })}
+                    className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-xs rounded-lg p-2 outline-none mt-1"
+                    placeholder="https://example.com/image.png"
+                  />
+                </div>
               </div>
 
               <div>

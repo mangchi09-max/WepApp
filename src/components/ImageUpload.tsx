@@ -62,7 +62,7 @@ export default function ImageUpload({ currentUrl, onUploadSuccess, className = '
         },
         (error) => {
           console.error('Storage Upload Error: ', error);
-          setErrorText(`업로드 실패: ${error.message}. AI Studio Firebase가 연동되어 있는지 확인하세요.`);
+          setErrorText(`업로드 실패: ${error.message}. 브라우저의 CORS 제한으로 발생할 수 있습니다. 프로젝트 루트의 CORS_GUIDE.md 가이드를 따르시거나, 아래 텍스트 상자를 통해 직접 이미지 주소 URL을 붙여넣으실 수 있습니다!`);
           setIsUploading(false);
           setUploadProgress(-1);
         },
