@@ -1,6 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
 import { Upload, X, Check, Loader2 } from 'lucide-react';
 
 interface ImageUploadProps {
@@ -47,32 +45,55 @@ export default function ImageUpload({ currentUrl, onUploadSuccess, className = '
       setIsUploading(true);
       setUploadProgress(0);
 
-      // Create storage reference
-      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-      const storageRef = ref(storage, `robot_portfolio_images/${fileName}`);
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // Perform resumable upload
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload', true);
 
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
           setUploadProgress(progress);
-        },
-        (error) => {
-          console.error('Storage Upload Error: ', error);
-          setErrorText(`업로드 실패: ${error.message}. 브라우저의 CORS 제한으로 발생할 수 있습니다. 프로젝트 루트의 CORS_GUIDE.md 가이드를 따르시거나, 아래 텍스트 상자를 통해 직접 이미지 주소 URL을 붙여넣으실 수 있습니다!`);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (data.url) {
+              setIsUploading(false);
+              setUploadProgress(100);
+              onUploadSuccess(data.url);
+            } else {
+              throw new Error('응답에 URL이 포함되어 있지 않습니다.');
+            }
+          } catch (e: any) {
+            console.error('Parsing error: ', e);
+            setErrorText('서버 응답을 처리하는 중 오류가 발생했습니다.');
+            setIsUploading(false);
+            setUploadProgress(-1);
+          }
+        } else {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            setErrorText(`업로드 실패: ${data.error || xhr.statusText}`);
+          } catch {
+            setErrorText(`업로드 실패: 서버 오류가 발생했습니다. (상태 코드: ${xhr.status})`);
+          }
           setIsUploading(false);
           setUploadProgress(-1);
-        },
-        async () => {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          setIsUploading(false);
-          setUploadProgress(100);
-          onUploadSuccess(downloadUrl);
         }
-      );
+      };
+
+      xhr.onerror = () => {
+        setErrorText('서버로 요청을 보내는 중 네트워크 오류가 발생했습니다.');
+        setIsUploading(false);
+        setUploadProgress(-1);
+      };
+
+      xhr.send(formData);
     } catch (err: any) {
       console.error('Upload catch error: ', err);
       setErrorText('업로드 준비 과정에서 오류가 발생했습니다.');
