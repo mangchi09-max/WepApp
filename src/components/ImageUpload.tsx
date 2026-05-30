@@ -1,6 +1,61 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Check, Loader2 } from 'lucide-react';
 
+function compressImage(file: File, maxWidth = 1000, maxHeight = 1000, quality = 0.7): Promise<Blob> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              resolve(file);
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = (err) => {
+        console.warn("Image load failed for compression, using original file", err);
+        resolve(file);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (err) => {
+      console.warn("FileReader failed for compression, using original file", err);
+      resolve(file);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 interface ImageUploadProps {
   currentUrl: string;
   onUploadSuccess: (url: string) => void;
@@ -45,8 +100,16 @@ export default function ImageUpload({ currentUrl, onUploadSuccess, className = '
       setIsUploading(true);
       setUploadProgress(0);
 
+      // Compress image client-side to keep base64 fallback lightweight
+      let fileToUpload: File | Blob = file;
+      try {
+        fileToUpload = await compressImage(file, 1000, 1000, 0.7);
+      } catch (compErr) {
+        console.warn("Client compression failed:", compErr);
+      }
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', fileToUpload, file.name.replace(/\.[^/.]+$/, "") + ".jpg");
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/upload', true);

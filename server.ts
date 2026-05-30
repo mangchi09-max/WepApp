@@ -102,20 +102,23 @@ async function startServer() {
         return res.json({ url: downloadUrl });
       } catch (fbError: any) {
         console.warn("Firebase Storage upload fallback (GCS bucket or client might not be initialised/configured):", fbError.message || fbError);
-        console.log("Falling back to local disk storage upload...");
+        console.log("Falling back to Base64 in-database storage to prevent any serverless 404s...");
 
-        const localFilePath = path.join(uploadsDir, fileName);
-        fs.writeFileSync(localFilePath, req.file.buffer);
+        const base64Data = req.file.buffer.toString("base64");
+        const dataUrl = `data:${req.file.mimetype};base64,${base64Data}`;
 
+        // Also write locally as passive diagnostics just in case they inspect files
         try {
+          const localFilePath = path.join(uploadsDir, fileName);
+          fs.writeFileSync(localFilePath, req.file.buffer);
           const secondLocalFilePath = path.join(localUploadsDir, fileName);
           fs.writeFileSync(secondLocalFilePath, req.file.buffer);
-        } catch (copyErr) {
-          console.warn("Could not copy uploaded image to root folder uploads:", copyErr);
+        } catch (writeErr) {
+          console.warn("Passive local uploads write omitted:", writeErr);
         }
 
-        console.log("Local upload successful. Serving via /uploads/", fileName);
-        return res.json({ url: `/uploads/${fileName}` });
+        console.log("In-database safe storage URL ready. Zero dependencies required.");
+        return res.json({ url: dataUrl });
       }
     } catch (error: any) {
       console.error("Server-side image upload error:", error);
