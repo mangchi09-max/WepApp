@@ -11,15 +11,34 @@ async function startServer() {
   const PORT = 3000;
 
   // Set up Firebase Admin or regular standard firebase on backend
-  const configPath = path.join(process.cwd(), 'src', 'firebase-applet-config.json');
+  let configPath = path.join(process.cwd(), 'src', 'firebase-applet-config.json');
+  if (!fs.existsSync(configPath)) {
+    configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  }
+  if (!fs.existsSync(configPath)) {
+    configPath = path.join(__dirname, 'src', 'firebase-applet-config.json');
+  }
+  if (!fs.existsSync(configPath)) {
+    configPath = path.join(__dirname, '..', 'src', 'firebase-applet-config.json');
+  }
+
   const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   const firebaseApp = initializeApp(firebaseConfig);
   const storage = getStorage(firebaseApp);
 
   // Set up local folder for static upload fallback
-  const uploadsDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+  // Use /tmp/uploads as default or fallback to handle read-only filesystems in Cloud Run containers smoothly
+  let uploadsDir = path.join('/tmp', 'uploads');
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn("Could not write inside /tmp/uploads, using current working directory:", err);
+    uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
   }
   app.use('/uploads', express.static(uploadsDir));
 
@@ -75,6 +94,12 @@ async function startServer() {
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Global error handler for middleware & routes
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("Global Express Error Handler Captured Error:", err);
+    res.status(500).json({ error: err.message || "Internal Server Error" });
   });
 
   // Vite middleware for development
