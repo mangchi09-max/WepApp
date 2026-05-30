@@ -152,7 +152,7 @@ export default function App() {
   // 2. Security / Password login
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (rawPassword === '1234') {
+    if (rawPassword === '6767') {
       setIsAdminMode(true);
       sessionStorage.setItem('portfolio_admin_authorized', 'true');
       setIsPasswordModalOpen(false);
@@ -785,7 +785,7 @@ export default function App() {
               )}
 
               <p className="text-[10px] text-outline-variant text-center leading-normal leading-relaxed">
-                테스트 또는 관리 평가를 위해 비밀번호 <span className="font-bold underline text-primary">1234</span>를 치십시오.
+                테스트 또는 관리 평가를 위해 비밀번호 <span className="font-bold underline text-primary">6767</span>를 치십시오.
               </p>
 
               <button
