@@ -10,21 +10,31 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Set up Firebase Admin or regular standard firebase on backend
-  let configPath = path.join(process.cwd(), 'src', 'firebase-applet-config.json');
-  if (!fs.existsSync(configPath)) {
-    configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  }
-  if (!fs.existsSync(configPath)) {
-    configPath = path.join(__dirname, 'src', 'firebase-applet-config.json');
-  }
-  if (!fs.existsSync(configPath)) {
-    configPath = path.join(__dirname, '..', 'src', 'firebase-applet-config.json');
-  }
+  // Set up Firebase Admin or regular standard firebase on backend with 100% crash protection
+  let storage: any = null;
+  try {
+    let configPath = path.join(process.cwd(), 'src', 'firebase-applet-config.json');
+    if (!fs.existsSync(configPath)) {
+      configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    }
+    if (!fs.existsSync(configPath)) {
+      configPath = path.join(__dirname, 'src', 'firebase-applet-config.json');
+    }
+    if (!fs.existsSync(configPath)) {
+      configPath = path.join(__dirname, '..', 'src', 'firebase-applet-config.json');
+    }
 
-  const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  const firebaseApp = initializeApp(firebaseConfig);
-  const storage = getStorage(firebaseApp);
+    if (fs.existsSync(configPath)) {
+      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const firebaseApp = initializeApp(firebaseConfig);
+      storage = getStorage(firebaseApp);
+      console.log("Firebase initialized successfully on Express backend.");
+    } else {
+      console.warn("Firebase configuration file fine check: not found. Local offline storage fallback is armed.");
+    }
+  } catch (err: any) {
+    console.error("Firebase Storage backend initialization was bypassed due to error:", err.message || err);
+  }
 
   // Set up local folder for static upload fallback
   // Use /tmp/uploads as default or fallback to handle read-only filesystems in Cloud Run containers smoothly
@@ -40,7 +50,19 @@ async function startServer() {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
   }
+
+  // Add robust double protection: Register static middleware for BOTH /tmp/uploads and local /uploads folders!
+  const localUploadsDir = path.join(process.cwd(), 'uploads');
+  try {
+    if (!fs.existsSync(localUploadsDir)) {
+      fs.mkdirSync(localUploadsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn("Could not create local project root uploads directory:", err);
+  }
+
   app.use('/uploads', express.static(uploadsDir));
+  app.use('/uploads', express.static(localUploadsDir));
 
   // Body parsers
   app.use(express.json());
@@ -65,6 +87,9 @@ async function startServer() {
 
       try {
         console.log("Attempting Firebase Storage upload for", fileName);
+        if (!storage) {
+          throw new Error("Firebase Storage client is not initialized.");
+        }
         const storageRef = ref(storage, `robot_portfolio_images/${fileName}`);
 
         // Perform upload using the buffer
@@ -76,11 +101,18 @@ async function startServer() {
         console.log("Firebase Storage upload successful!", downloadUrl);
         return res.json({ url: downloadUrl });
       } catch (fbError: any) {
-        console.warn("Firebase Storage upload failed (GCS bucket might not be initialized/configured):", fbError.message || fbError);
+        console.warn("Firebase Storage upload fallback (GCS bucket or client might not be initialised/configured):", fbError.message || fbError);
         console.log("Falling back to local disk storage upload...");
 
         const localFilePath = path.join(uploadsDir, fileName);
         fs.writeFileSync(localFilePath, req.file.buffer);
+
+        try {
+          const secondLocalFilePath = path.join(localUploadsDir, fileName);
+          fs.writeFileSync(secondLocalFilePath, req.file.buffer);
+        } catch (copyErr) {
+          console.warn("Could not copy uploaded image to root folder uploads:", copyErr);
+        }
 
         console.log("Local upload successful. Serving via /uploads/", fileName);
         return res.json({ url: `/uploads/${fileName}` });
