@@ -15,54 +15,40 @@ service cloud.firestore {
     // Hero content validation
     function isValidHero(data) {
       return data.keys().hasAll(['heroTitle', 'heroDescription', 'heroImageBase64'])
-        && data.heroTitle is string && data.heroTitle.size() <= 1000
-        && data.heroDescription is string && data.heroDescription.size() <= 4000
-        && data.heroImageBase64 is string && data.heroImageBase64.size() <= 1000000
-        && (!data.keys().contains('tag') || (data.tag is string && data.tag.size() <= 300))
-        && (!data.keys().contains('highlight') || (data.highlight is string && data.highlight.size() <= 1000))
-        && (!data.keys().contains('descriptionPara2') || (data.descriptionPara2 is string && data.descriptionPara2.size() <= 2000))
-        && (!data.keys().contains('updatedAt') || (data.updatedAt is string || data.updatedAt is timestamp));
+        && data.heroTitle is string && data.heroTitle.size() <= 2000
+        && data.heroDescription is string && data.heroDescription.size() <= 8000
+        && data.heroImageBase64 is string && data.heroImageBase64.size() <= 2000000;
     }
 
     // Experience validation
     function isValidExperience(data) {
       return data.keys().hasAll(['id', 'title', 'description', 'sortOrder'])
         && data.id is string && data.id.size() <= 128
-        && data.title is string && data.title.size() <= 200
-        && data.description is string && data.description.size() <= 1000
-        && data.sortOrder is int;
+        && data.title is string && data.title.size() <= 1000
+        && data.description is string && data.description.size() <= 4000;
     }
 
     // Skill validation
     function isValidSkill(data) {
-      return data.keys().hasAll(['id', 'name', 'iconName', 'sortOrder'])
+      return data.keys().hasAll(['id', 'name', 'sortOrder'])
         && data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() <= 100
-        && data.iconName is string && data.iconName.size() <= 100
-        && data.sortOrder is int;
+        && data.name is string && data.name.size() <= 500;
     }
 
     // Award validation
     function isValidAward(data) {
-      return data.keys().hasAll(['id', 'title', 'category', 'sortOrder'])
+      return data.keys().hasAll(['id', 'title', 'sortOrder'])
         && data.id is string && data.id.size() <= 128
-        && data.title is string && data.title.size() <= 300
-        && data.category is string && data.category.size() <= 100
-        && data.sortOrder is int;
+        && data.title is string && data.title.size() <= 1000;
     }
 
     // Portfolio Item validation
     function isValidPortfolioItem(data) {
       return data.keys().hasAll(['id', 'title', 'description', 'imageBase64'])
         && data.id is string && data.id.size() <= 128
-        && data.title is string && data.title.size() <= 300
-        && data.description is string && data.description.size() <= 3000
-        && data.imageBase64 is string && data.imageBase64.size() <= 1000000
-        && (!data.keys().contains('code') || (data.code is string && data.code.size() <= 100))
-        && (!data.keys().contains('technologies') || (data.technologies is list))
-        && (!data.keys().contains('sortOrder') || (data.sortOrder is int))
-        && (!data.keys().contains('createdAt') || (data.createdAt is string || data.createdAt is timestamp))
-        && (!data.keys().contains('updatedAt') || (data.updatedAt is string || data.updatedAt is timestamp));
+        && data.title is string && data.title.size() <= 1000
+        && data.description is string && data.description.size() <= 10000
+        && data.imageBase64 is string && data.imageBase64.size() <= 2000000;
     }
 
     // Rules for Collections
