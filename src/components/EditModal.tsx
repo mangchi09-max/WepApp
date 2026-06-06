@@ -5,8 +5,7 @@ import {
   ExperienceItem, 
   SkillItem, 
   AwardItem, 
-  ProjectItem, 
-  PortfolioData 
+  ProjectItem 
 } from '../types';
 
 interface EditModalProps {
@@ -31,39 +30,40 @@ export default function EditModal({
   const [success, setSuccess] = useState<boolean>(false);
 
   // Form states
-  const [heroForm, setHeroForm] = useState(data || {
+  const [heroForm, setHeroForm] = useState({
     tag: '',
-    title: '',
+    heroTitle: '',
     highlight: '',
-    description: '',
+    heroDescription: '',
     descriptionPara2: '',
-    imageUrl: ''
+    heroImageBase64: ''
   });
 
-  const [experienceForm, setExperienceForm] = useState<Partial<ExperienceItem>>(data || {
+  const [experienceForm, setExperienceForm] = useState<Partial<ExperienceItem>>({
     title: '',
     description: '',
     sortOrder: 0
   });
 
-  const [skillForm, setSkillForm] = useState<Partial<SkillItem>>(data || {
+  const [skillForm, setSkillForm] = useState<Partial<SkillItem>>({
     name: '',
     iconName: 'code',
     sortOrder: 0
   });
 
-  const [awardForm, setAwardForm] = useState<Partial<AwardItem>>(data || {
+  const [awardForm, setAwardForm] = useState<Partial<AwardItem>>({
     title: '',
     category: 'AWARD',
     sortOrder: 0
   });
 
-  const [projectForm, setProjectForm] = useState<Partial<ProjectItem>>(data || {
+  const [projectForm, setProjectForm] = useState({
+    id: '',
     code: '',
     title: '',
     description: '',
-    imageUrl: '',
-    technologies: [],
+    imageBase64: '',
+    technologies: [] as string[],
     sortOrder: 0
   });
 
@@ -76,7 +76,14 @@ export default function EditModal({
     if (!isOpen) return;
 
     if (type === 'hero') {
-      setHeroForm(data);
+      setHeroForm({
+        tag: data?.tag || '',
+        heroTitle: data?.heroTitle || '',
+        highlight: data?.highlight || '',
+        heroDescription: data?.heroDescription || '',
+        descriptionPara2: data?.descriptionPara2 || '',
+        heroImageBase64: data?.heroImageBase64 || ''
+      });
     } else if (type === 'experience') {
       setExperienceForm(data || { title: '', description: '', sortOrder: 0 });
     } else if (type === 'skill') {
@@ -84,7 +91,7 @@ export default function EditModal({
     } else if (type === 'award') {
       setAwardForm(data || { title: '', category: 'AWARD', sortOrder: 0 });
     } else if (type === 'project') {
-      setProjectForm(data || { code: '', title: '', description: '', imageUrl: '', technologies: [], sortOrder: 0 });
+      setProjectForm(data || { id: '', code: '', title: '', description: '', imageBase64: '', technologies: [], sortOrder: 0 });
       setTechString(data?.technologies ? data.technologies.join(', ') : '');
     }
   }, [isOpen, type, data]);
@@ -99,8 +106,11 @@ export default function EditModal({
 
     try {
       if (type === 'hero') {
-        if (!heroForm.tag || !heroForm.title || !heroForm.description) {
-          throw new Error('필수 정보들이 빈칸입니다.');
+        if (!heroForm.heroTitle || !heroForm.heroDescription) {
+          throw new Error('제목과 설명은 필수 입력 사항입니다.');
+        }
+        if (!heroForm.heroImageBase64) {
+          throw new Error('대표 이미지를 업로드해 주세요.');
         }
         await onSave(heroForm);
       } else if (type === 'experience') {
@@ -122,6 +132,10 @@ export default function EditModal({
         if (!projectForm.title || !projectForm.code || !projectForm.description) {
           throw new Error('시리얼 코드, 설명, 타이틀은 필수 항목입니다.');
         }
+        if (!projectForm.imageBase64) {
+          throw new Error('프로젝트 이미지를 필수 업로드해야 합니다.');
+        }
+        
         // convert comma tech string to clean array
         const techList = techString
           .split(',')
@@ -228,13 +242,14 @@ export default function EditModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">Hero Title</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">Hero Title (heroTitle)</label>
                 <textarea 
                   rows={2}
-                  value={heroForm.title}
-                  onChange={e => setHeroForm({ ...heroForm, title: e.target.value })}
-                  className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-sm rounded-lg p-2.5 outline-none"
-                  placeholder="줄바꿈을 넣어 타이틀을 표현해 보세요"
+                  value={heroForm.heroTitle}
+                  onChange={e => setHeroForm({ ...heroForm, heroTitle: e.target.value })}
+                  className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-sm rounded-lg p-2.5 outline-none font-bold"
+                  placeholder="제목을 입력하세요 (줄바꿈 가능)"
+                  required
                 />
               </div>
 
@@ -250,13 +265,14 @@ export default function EditModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">Intro Description Paragraph</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">Intro Description (heroDescription)</label>
                 <textarea 
                   rows={3}
-                  value={heroForm.description}
-                  onChange={e => setHeroForm({ ...heroForm, description: e.target.value })}
+                  value={heroForm.heroDescription}
+                  onChange={e => setHeroForm({ ...heroForm, heroDescription: e.target.value })}
                   className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-sm rounded-lg p-2.5 outline-none leading-relaxed"
-                  placeholder="자기자신 혹은 연구 방향을 설명해 보세요."
+                  placeholder="설명 문구를 상세하게 채워넣으세요."
+                  required
                 />
               </div>
 
@@ -272,21 +288,11 @@ export default function EditModal({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block">Hero Model/Graphic Image</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block">Hero Model Image (heroImageBase64)</label>
                 <ImageUpload 
-                  currentUrl={heroForm.imageUrl}
-                  onUploadSuccess={url => setHeroForm({ ...heroForm, imageUrl: url })}
+                  currentUrl={heroForm.heroImageBase64}
+                  onUploadSuccess={base64 => setHeroForm({ ...heroForm, heroImageBase64: base64 })}
                 />
-                <div className="text-[11px] text-on-surface-variant font-mono mt-1">
-                  <span>또는 직접 이미지 URL 주소 입력:</span>
-                  <input 
-                    type="text" 
-                    value={heroForm.imageUrl}
-                    onChange={e => setHeroForm({ ...heroForm, imageUrl: e.target.value })}
-                    className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-xs rounded-lg p-2 outline-none mt-1"
-                    placeholder="https://example.com/image.png"
-                  />
-                </div>
               </div>
             </div>
           )}
@@ -447,7 +453,7 @@ export default function EditModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">설명 문구</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">설명 문구 (description)</label>
                 <textarea 
                   rows={2}
                   value={projectForm.description}
@@ -459,21 +465,11 @@ export default function EditModal({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block">로봇 사진 또는 설계 도식화 이미지</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block">로봇 사진 또는 설계 이미지 (imageBase64)</label>
                 <ImageUpload 
-                  currentUrl={projectForm.imageUrl || ''}
-                  onUploadSuccess={url => setProjectForm({ ...projectForm, imageUrl: url })}
+                  currentUrl={projectForm.imageBase64 || ''}
+                  onUploadSuccess={base64 => setProjectForm({ ...projectForm, imageBase64: base64 })}
                 />
-                <div className="text-[11px] text-on-surface-variant font-mono mt-1">
-                  <span>또는 직접 이미지 URL 주소 입력:</span>
-                  <input 
-                    type="text" 
-                    value={projectForm.imageUrl || ''}
-                    onChange={e => setProjectForm({ ...projectForm, imageUrl: e.target.value })}
-                    className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-xs rounded-lg p-2 outline-none mt-1"
-                    placeholder="https://example.com/image.png"
-                  />
-                </div>
               </div>
 
               <div>

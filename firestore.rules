@@ -14,13 +14,14 @@ service cloud.firestore {
 
     // Hero content validation
     function isValidHero(data) {
-      return data.keys().hasAll(['tag', 'title', 'highlight', 'description', 'descriptionPara2', 'imageUrl'])
-        && data.tag is string && data.tag.size() <= 200
-        && data.title is string && data.title.size() <= 500
-        && data.highlight is string && data.highlight.size() <= 500
-        && data.description is string && data.description.size() <= 2000
-        && data.descriptionPara2 is string && data.descriptionPara2.size() <= 1000
-        && data.imageUrl is string && data.imageUrl.size() <= 1000;
+      return data.keys().hasAll(['heroTitle', 'heroDescription', 'heroImageBase64'])
+        && data.heroTitle is string && data.heroTitle.size() <= 1000
+        && data.heroDescription is string && data.heroDescription.size() <= 4000
+        && data.heroImageBase64 is string && data.heroImageBase64.size() <= 1000000
+        && (!data.keys().contains('tag') || (data.tag is string && data.tag.size() <= 300))
+        && (!data.keys().contains('highlight') || (data.highlight is string && data.highlight.size() <= 1000))
+        && (!data.keys().contains('descriptionPara2') || (data.descriptionPara2 is string && data.descriptionPara2.size() <= 2000))
+        && (!data.keys().contains('updatedAt') || (data.updatedAt is string || data.updatedAt is timestamp));
     }
 
     // Experience validation
@@ -50,23 +51,24 @@ service cloud.firestore {
         && data.sortOrder is int;
     }
 
-    // Project validation
-    function isValidProject(data) {
-      return data.keys().hasAll(['id', 'code', 'title', 'description', 'imageUrl', 'technologies', 'sortOrder'])
+    // Portfolio Item validation
+    function isValidPortfolioItem(data) {
+      return data.keys().hasAll(['id', 'title', 'description', 'imageBase64'])
         && data.id is string && data.id.size() <= 128
-        && data.code is string && data.code.size() <= 50
-        && data.title is string && data.title.size() <= 200
-        && data.description is string && data.description.size() <= 2000
-        && data.imageUrl is string && data.imageUrl.size() <= 1000
-        && data.technologies is list
-        && data.technologies.size() <= 20
-        && data.sortOrder is int;
+        && data.title is string && data.title.size() <= 300
+        && data.description is string && data.description.size() <= 3000
+        && data.imageBase64 is string && data.imageBase64.size() <= 1000000
+        && (!data.keys().contains('code') || (data.code is string && data.code.size() <= 100))
+        && (!data.keys().contains('technologies') || (data.technologies is list))
+        && (!data.keys().contains('sortOrder') || (data.sortOrder is int))
+        && (!data.keys().contains('createdAt') || (data.createdAt is string || data.createdAt is timestamp))
+        && (!data.keys().contains('updatedAt') || (data.updatedAt is string || data.updatedAt is timestamp));
     }
 
     // Rules for Collections
     match /siteContent/{documentId} {
       allow read: if true;
-      allow write: if documentId == 'hero' && isValidHero(request.resource.data);
+      allow write: if (documentId == 'hero' || documentId == 'main') && isValidHero(request.resource.data);
     }
 
     match /experiences/{experienceId} {
@@ -87,9 +89,9 @@ service cloud.firestore {
       allow delete: if true;
     }
 
-    match /projects/{projectId} {
+    match /portfolioItems/{itemId} {
       allow read: if true;
-      allow create, update: if isValidId(projectId) && isValidProject(request.resource.data);
+      allow create, update: if isValidId(itemId) && isValidPortfolioItem(request.resource.data);
       allow delete: if true;
     }
   }

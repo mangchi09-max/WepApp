@@ -19,13 +19,13 @@ import {
   Grid,
   User,
   Mail,
-  Github
+  Github,
+  AlertCircle
 } from 'lucide-react';
 import { 
   collection, 
   doc, 
   setDoc, 
-  addDoc, 
   deleteDoc, 
   onSnapshot, 
   query, 
@@ -38,10 +38,17 @@ import CustomLucideIcon from './components/LucideIcon';
 import AdminBar from './components/AdminBar';
 import EditModal from './components/EditModal';
 
+// Mandatory SVG-encoded Fallback Image according to guidelines
+const FALLBACK_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%25' height='100%25' fill='%2312131a'/><circle cx='400' cy='300' r='80' fill='%231d2030' stroke='%233b82f6' stroke-width='2'/><path d='M370 300 H430 M400 270 V330' stroke='%233b82f6' stroke-width='4' stroke-linecap='round'/><text x='50%25' y='430' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='16' fill='%23475569'>ROBOT PORTFOLIO // fallback_image</text></svg>";
+
 export default function App() {
   // Master Portfolio States
   const [portfolio, setPortfolio] = useState<PortfolioData>(defaultPortfolioData);
   const [loadingDb, setLoadingDb] = useState<boolean>(true);
+
+  // Read-only and permission states
+  const [isReadOnlyMode, setIsReadOnlyMode] = useState<boolean>(false);
+  const [permissionMessage, setPermissionMessage] = useState<string>('');
 
   // Admin Verification States
   const [rawPassword, setRawPassword] = useState<string>('');
@@ -69,25 +76,30 @@ export default function App() {
     };
     window.addEventListener('scroll', handleScroll);
 
-    // Initial database connection setup
-    const unsubscribeHero = onSnapshot(doc(db, 'siteContent', 'hero'), (docSnap) => {
+    // Initial database connection setup - listen to siteContent/main
+    const unsubscribeHero = onSnapshot(doc(db, 'siteContent', 'main'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setPortfolio(prev => ({
           ...prev,
           hero: {
             tag: data.tag || defaultPortfolioData.hero.tag,
-            title: data.title || defaultPortfolioData.hero.title,
+            title: data.heroTitle || defaultPortfolioData.hero.title, // Mapping heroTitle to UI Title
             highlight: data.highlight || defaultPortfolioData.hero.highlight,
-            description: data.description || defaultPortfolioData.hero.description,
+            description: data.heroDescription || defaultPortfolioData.hero.description, // Mapping heroDescription to UI Description
             descriptionPara2: data.descriptionPara2 || defaultPortfolioData.hero.descriptionPara2,
-            imageUrl: data.imageUrl || defaultPortfolioData.hero.imageUrl
+            imageUrl: data.heroImageBase64 || defaultPortfolioData.hero.imageUrl // Mapping heroImageBase64 to UI Image
           }
         }));
       }
       setLoadingDb(false);
     }, (error) => {
       console.warn('Hero loading failed, using fallback static data:', error);
+      // Soft transition to read-only Mode on restricted permissions
+      if (error.message?.includes('permissions') || error.message?.includes('denied') || error.message?.includes('Unauthenticated')) {
+        setIsReadOnlyMode(true);
+        setPermissionMessage('Firestore 접근 권한이 부족합니다. 읽기 전용 모드로 실행합니다.');
+      }
       setLoadingDb(false);
     });
 
@@ -101,7 +113,13 @@ export default function App() {
       if (items.length > 0) {
         setPortfolio(prev => ({ ...prev, experiences: items }));
       }
-    }, (e) => console.log('Exp onSnapshot error:', e));
+    }, (error) => {
+      console.warn('Experiences snapshot error:', error);
+      if (error.message?.includes('permissions') || error.message?.includes('denied')) {
+        setIsReadOnlyMode(true);
+        setPermissionMessage('Firestore 권한 제한으로 일부 데이터를 불러오지 못해 읽기 전용으로 작동합니다.');
+      }
+    });
 
     // Listen to Skills
     const qSkills = query(collection(db, 'skills'), orderBy('sortOrder', 'asc'));
@@ -113,7 +131,9 @@ export default function App() {
       if (items.length > 0) {
         setPortfolio(prev => ({ ...prev, skills: items }));
       }
-    }, (e) => console.log('Skills onSnapshot error:', e));
+    }, (error) => {
+      console.warn('Skills snapshot error:', error);
+    });
 
     // Listen to Awards
     const qAwards = query(collection(db, 'awards'), orderBy('sortOrder', 'asc'));
@@ -125,19 +145,32 @@ export default function App() {
       if (items.length > 0) {
         setPortfolio(prev => ({ ...prev, awards: items }));
       }
-    }, (e) => console.log('Awards onSnapshot error:', e));
+    }, (error) => {
+      console.warn('Awards snapshot error:', error);
+    });
 
-    // Listen to Projects
-    const qProjects = query(collection(db, 'projects'), orderBy('sortOrder', 'asc'));
+    // Listen to Projects from portfolioItems collection as required
+    const qProjects = query(collection(db, 'portfolioItems'), orderBy('sortOrder', 'asc'));
     const unsubscribeProjects = onSnapshot(qProjects, (snap) => {
       const items: ProjectItem[] = [];
       snap.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as ProjectItem);
+        const d = doc.data();
+        items.push({
+          id: doc.id,
+          code: d.code || 'CODE',
+          title: d.title || '',
+          description: d.description || '',
+          imageUrl: d.imageBase64 || '', // imageBase64 mapped to react state
+          technologies: d.technologies || [],
+          sortOrder: d.sortOrder || 0
+        } as ProjectItem);
       });
       if (items.length > 0) {
         setPortfolio(prev => ({ ...prev, projects: items }));
       }
-    }, (e) => console.log('Projects onSnapshot error:', e));
+    }, (error) => {
+      console.warn('PortfolioItems snapshot error:', error);
+    });
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
@@ -149,10 +182,11 @@ export default function App() {
     };
   }, []);
 
-  // 2. Security / Password login
+  // 2. Admin Verification (Password '1234')
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (rawPassword === '6767') {
+    const ADMIN_PASSWORD = "1234";
+    if (rawPassword === ADMIN_PASSWORD) {
       setIsAdminMode(true);
       sessionStorage.setItem('portfolio_admin_authorized', 'true');
       setIsPasswordModalOpen(false);
@@ -170,53 +204,85 @@ export default function App() {
 
   // 3. Save / Delete actions callback for entities
   const handleSaveData = async (updatedData: any) => {
-    if (activeModal === 'hero') {
-      try {
-        await setDoc(doc(db, 'siteContent', 'hero'), updatedData);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, 'siteContent/hero');
-      }
-    } else {
-      const collectionName = {
-        experience: 'experiences',
-        skill: 'skills',
-        award: 'awards',
-        project: 'projects'
-      }[activeModal!];
-
-      try {
-        if (updatedData.id) {
-          // Update existing doc
-          await setDoc(doc(db, collectionName, updatedData.id), updatedData);
-        } else {
-          // Add new doc
-          const docId = `${collectionName}_${Date.now()}`;
-          await setDoc(doc(db, collectionName, docId), {
-            ...updatedData,
-            id: docId
-          });
-        }
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `${collectionName}/${updatedData.id || 'new'}`);
-      }
+    if (isReadOnlyMode) {
+      alert('보안/권한 문제로 읽기 전용 모드에서는 데이터를 저장할 수 없습니다.');
+      return;
     }
-    setActiveModal(null);
+
+    try {
+      if (activeModal === 'hero') {
+        const payload = {
+          tag: updatedData.tag || '',
+          heroTitle: updatedData.heroTitle || '',
+          highlight: updatedData.highlight || '',
+          heroDescription: updatedData.heroDescription || '',
+          descriptionPara2: updatedData.descriptionPara2 || '',
+          heroImageBase64: updatedData.heroImageBase64 || '',
+          updatedAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'siteContent', 'main'), payload);
+      } else if (activeModal === 'project') {
+        const itemId = updatedData.id || `proj_${Date.now()}`;
+        const payload = {
+          id: itemId,
+          code: updatedData.code || '',
+          title: updatedData.title || '',
+          description: updatedData.description || '',
+          imageBase64: updatedData.imageBase64 || '', // imageBase64 saved to Firestore
+          technologies: updatedData.technologies || [],
+          sortOrder: updatedData.sortOrder || 0,
+          createdAt: updatedData.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'portfolioItems', itemId), payload);
+      } else {
+        const collectionName = {
+          experience: 'experiences',
+          skill: 'skills',
+          award: 'awards'
+        }[activeModal!];
+
+        if (collectionName) {
+          if (updatedData.id) {
+            await setDoc(doc(db, collectionName, updatedData.id), updatedData);
+          } else {
+            const docId = `${collectionName}_${Date.now()}`;
+            await setDoc(doc(db, collectionName, docId), {
+              ...updatedData,
+              id: docId
+            });
+          }
+        }
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `write/${activeModal}`);
+    } finally {
+      setActiveModal(null);
+    }
   };
 
   const handleDeleteData = async (id: string) => {
+    if (isReadOnlyMode) {
+      alert('보안/권한 문제로 읽기 전용 모드에서는 데이터를 삭제할 수 없습니다.');
+      return;
+    }
+
     const collectionName = {
       experience: 'experiences',
       skill: 'skills',
       award: 'awards',
-      project: 'projects'
+      project: 'portfolioItems' // Correct collection name
     }[activeModal!];
+
+    if (!collectionName) return;
 
     try {
       await deleteDoc(doc(db, collectionName, id));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `${collectionName}/${id}`);
+    } finally {
+      setActiveModal(null);
     }
-    setActiveModal(null);
   };
 
   // Active navigational menu link selector
@@ -243,12 +309,22 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-on-background font-sans relative">
       
+      {/* 0. SECURITY READ-ONLY MODE WARNING BANNER */}
+      {isReadOnlyMode && (
+        <div className="bg-red-900/60 border-b border-red-500/30 text-red-200 text-xs text-center py-2 px-margin-mobile flex items-center justify-center gap-2 backdrop-blur-2xl z-50 fixed w-full">
+          <AlertCircle size={14} className="stroke-red-400 shrink-0" />
+          <span>{permissionMessage || '현재 읽기 전용 모드로 작동하고 있습니다. 콘텐츠를 저장하는 행위는 차단됩니다.'}</span>
+        </div>
+      )}
+
       {/* 1. ADMIN HEADER BAR */}
       {isAdminMode && <AdminBar onExit={handleExitAdmin} />}
 
       {/* 2. NAVIGATION BAR */}
       <nav className={`fixed left-0 right-0 z-40 transition-all duration-300 ${
-        isAdminMode ? 'top-[52px]' : 'top-0'
+        isReadOnlyMode ? 'top-[36px]' : ''
+      } ${
+        isAdminMode ? (isReadOnlyMode ? 'top-[88px]' : 'top-[52px]') : 'top-0'
       } ${
         isScrolled 
           ? 'bg-background/80 border-b border-white/10 shadow-[0_0_20px_rgba(0,210,255,0.15)] backdrop-blur-xl' 
@@ -257,7 +333,7 @@ export default function App() {
         <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-20">
           <a href="#" className="font-space text-headline-md font-bold text-primary flex items-center gap-2 group">
             <Sliders className="text-primary group-hover:rotate-180 transition-transform duration-500" size={24} />
-            <span className="text-glow tracking-tight">My Robot Portfolio</span>
+            <span className="text-glow tracking-tight">Robot Portfolio</span>
           </a>
 
           {/* Desktop Nav */}
@@ -358,7 +434,14 @@ export default function App() {
               {isAdminMode && (
                 <button
                   onClick={() => {
-                    setSelectedData(portfolio.hero);
+                    setSelectedData({
+                      tag: portfolio.hero.tag,
+                      heroTitle: portfolio.hero.title,
+                      highlight: portfolio.hero.highlight,
+                      heroDescription: portfolio.hero.description,
+                      descriptionPara2: portfolio.hero.descriptionPara2,
+                      heroImageBase64: portfolio.hero.imageUrl
+                    });
                     setActiveModal('hero');
                   }}
                   className="bg-primary hover:bg-primary-fixed-dim text-on-primary font-bold p-1 rounded-full flex items-center justify-center transition-all shadow-md ml-2"
@@ -369,7 +452,7 @@ export default function App() {
               )}
             </div>
 
-            <h1 className="text-display-lg-mobile md:text-display-lg font-space font-bold text-on-surface text-glow leading-tight">
+            <h1 className="text-display-lg-mobile md:text-display-lg font-space font-bold text-on-surface text-glow leading-tight break-all">
               {portfolio.hero.title.split('\n')[0]}
               {portfolio.hero.title.split('\n')[1] && <><br /><span className="text-primary">{portfolio.hero.title.split('\n')[1]}</span></>}
             </h1>
@@ -388,14 +471,25 @@ export default function App() {
 
           {/* Model Arm image preview */}
           <div className="flex-1 w-full relative">
-            <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full -z-10"></div>
+            <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full -z-10 animate-pulse"></div>
             <div className="glass-panel p-2 rounded-2xl relative z-10 transform hover:scale-[1.01] transition-transform duration-500">
-              <img 
-                src={portfolio.hero.imageUrl} 
-                alt="Robot Hero Arm" 
-                className="w-full h-auto rounded-xl object-cover border border-white/5 aspect-[4/3] md:aspect-auto"
-                referrerPolicy="no-referrer"
-              />
+              {(() => {
+                const safeImage = typeof portfolio.hero.imageUrl === "string" && portfolio.hero.imageUrl.trim() !== "" 
+                  ? portfolio.hero.imageUrl 
+                  : FALLBACK_IMAGE;
+
+                return (
+                  <img 
+                    src={safeImage} 
+                    alt="Robot Hero Arm" 
+                    className="w-full h-auto rounded-xl object-cover border border-white/5 aspect-[4/3] md:aspect-auto"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.currentTarget.src = FALLBACK_IMAGE;
+                    }}
+                  />
+                );
+              })()}
               <div className="absolute top-4 right-4 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-md text-label-sm text-primary border border-primary/30 tracking-widest font-mono flex items-center gap-1">
                 <span className="w-2 h-2 bg-primary rounded-full animate-ping" />
                 <span>STATUS: ACTIVE</span>
@@ -458,7 +552,7 @@ export default function App() {
                               setSelectedData(exp);
                               setActiveModal('experience');
                             }}
-                            className="bg-primary/20 hover:bg-primary/40 text-primary p-1 rounded-lg transition-colors border border-primary/20"
+                            className="bg-primary/20 hover:bg-primary/40 text-primary p-1 rounded-lg transition-colors border border-primary/20 animate-scaleUp"
                           >
                             <Edit size={12} />
                           </button>
@@ -472,7 +566,7 @@ export default function App() {
                               setSelectedData(exp);
                               setActiveModal('experience');
                             }}
-                            className="bg-primary/20 hover:bg-primary/40 text-primary p-1 rounded-lg transition-colors border border-primary/20"
+                            className="bg-primary/20 hover:bg-primary/40 text-primary p-1 rounded-lg transition-colors border border-primary/20 animate-scaleUp"
                           >
                             <Edit size={12} />
                           </button>
@@ -540,7 +634,7 @@ export default function App() {
                       setSelectedData(skill);
                       setActiveModal('skill');
                     }}
-                    className="absolute -top-2 -right-2 bg-primary hover:bg-primary-fixed text-on-primary p-1 rounded-full transition-all scale-0 group-hover:scale-100 shadow"
+                    className="absolute -top-2 -right-2 bg-primary hover:bg-primary-fixed text-on-primary p-1 rounded-full transition-all scale-0 group-hover:scale-100 shadow scale-up ease-out"
                     title="편집"
                   >
                     <Edit size={10} />
@@ -640,7 +734,7 @@ export default function App() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {portfolio.projects.map((proj, idx) => {
-              const isFullWidthSpan = proj.code === 'APP-001' || proj.id === 'proj4' || idx === portfolio.projects.length - 1 && portfolio.projects.length % 3 !== 0;
+              const isFullWidthSpan = proj.code === 'APP-001' || proj.id === 'proj4' || (idx === portfolio.projects.length - 1 && portfolio.projects.length % 3 !== 0);
               return (
                 <div 
                   key={proj.id} 
@@ -651,7 +745,15 @@ export default function App() {
                   {isAdminMode && (
                     <button
                       onClick={() => {
-                        setSelectedData(proj);
+                        setSelectedData({
+                          id: proj.id,
+                          code: proj.code,
+                          title: proj.title,
+                          description: proj.description,
+                          imageBase64: proj.imageUrl, // Map local imageUrl back to state imageBase64
+                          technologies: proj.technologies,
+                          sortOrder: proj.sortOrder
+                        });
                         setActiveModal('project');
                       }}
                       className="absolute top-4 left-4 z-20 bg-primary hover:bg-primary-fixed text-on-primary p-2 rounded-lg transition-all shadow-lg text-xs font-semibold flex items-center gap-1"
@@ -669,12 +771,23 @@ export default function App() {
                       <div className="absolute top-3 right-3 z-10 bg-surface/85 backdrop-blur text-primary text-[10px] font-bold font-mono px-2 py-1 rounded border border-primary/20">
                         {proj.code}
                       </div>
-                      <img 
-                        src={proj.imageUrl} 
-                        alt={proj.title} 
-                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
-                        referrerPolicy="no-referrer"
-                      />
+                      {(() => {
+                        const safeImage = typeof proj.imageUrl === "string" && proj.imageUrl.trim() !== "" 
+                          ? proj.imageUrl 
+                          : FALLBACK_IMAGE;
+
+                        return (
+                          <img 
+                            src={safeImage} 
+                            alt={proj.title} 
+                            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.currentTarget.src = FALLBACK_IMAGE;
+                            }}
+                          />
+                        );
+                      })()}
                       <div className="absolute inset-0 bg-gradient-to-t from-surface-dim to-transparent opacity-85"></div>
                     </div>
 
@@ -684,7 +797,7 @@ export default function App() {
                         <h3 className="text-headline-md font-space font-semibold text-primary mb-2">
                           {proj.title}
                         </h3>
-                        <p className="text-body-md text-on-surface-variant/90 leading-relaxed max-w-2xl">
+                        <p className="text-body-md text-on-surface-variant/90 leading-relaxed max-w-2xl break-all">
                           {proj.description}
                         </p>
                       </div>
@@ -779,13 +892,13 @@ export default function App() {
               </div>
 
               {passwordError && (
-                <p className="text-[11px] text-error font-medium text-center bg-error/10 border border-error/20 p-2 rounded-lg">
+                <p className="text-[11px] text-error font-medium text-center bg-error/10 border border-error/20 p-2 rounded-lg animate-shake">
                   {passwordError}
                 </p>
               )}
 
               <p className="text-[10px] text-outline-variant text-center leading-normal leading-relaxed">
-                테스트 또는 관리 평가를 위해 비밀번호 <span className="font-bold underline text-primary">6767</span>를 치십시오.
+                테스트 또는 관리 평가를 위해 비밀번호 <span className="font-bold underline text-primary">1234</span>를 입력하십시오.
               </p>
 
               <button

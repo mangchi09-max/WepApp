@@ -6,13 +6,14 @@
       "type": "object",
       "properties": {
         "tag": { "type": "string", "description": "The system section indicator tag, e.g. 'SYS.INIT // STUDENT PROFILE'" },
-        "title": { "type": "string", "description": "Display-level header title text with line-breaks" },
+        "heroTitle": { "type": "string", "description": "Display-level header title text with line-breaks" },
         "highlight": { "type": "string", "description": "Short summary or key phrase of the description" },
-        "description": { "type": "string", "description": "A long description paragraph detailing interests" },
+        "heroDescription": { "type": "string", "description": "A long description paragraph detailing interests" },
         "descriptionPara2": { "type": "string", "description": "Secondary highlight or conclusion statement" },
-        "imageUrl": { "type": "string", "description": "Firebase Storage or external URL to the main hero graphic" }
+        "heroImageBase64": { "type": "string", "description": "High-compressed Base64 string of the main hero graphic" },
+        "updatedAt": { "type": "string", "description": "Timestamp indicating last modified" }
       },
-      "required": ["tag", "title", "highlight", "description", "imageUrl"]
+      "required": ["heroTitle", "heroDescription", "heroImageBase64"]
     },
     "ExperienceItem": {
       "title": "Experience Item",
@@ -50,26 +51,28 @@
       },
       "required": ["id", "title", "sortOrder"]
     },
-    "ProjectItem": {
-      "title": "Project Item",
-      "description": "Defines a single portfolio card displaying a developed robotic project",
+    "PortfolioItem": {
+      "title": "Portfolio Item",
+      "description": "Defines a single portfolio card displaying a developed robotic project using Base64 imagery",
       "type": "object",
       "properties": {
         "id": { "type": "string", "description": "Unique identifier" },
         "code": { "type": "string", "description": "Product code label, e.g. 'SN-001'" },
         "title": { "type": "string", "description": "Project title, e.g. 'Line Tracing Robot'" },
         "description": { "type": "string", "description": "Short explanation of the robotic task" },
-        "imageUrl": { "type": "string", "description": "Firebase Storage or external URL to the project preview cover" },
+        "imageBase64": { "type": "string", "description": "High-compressed Base64 string of the project preview cover" },
         "technologies": { "type": "array", "description": "Technologies tag list" },
-        "sortOrder": { "type": "integer", "description": "Sorting sequence order" }
+        "sortOrder": { "type": "integer", "description": "Sorting sequence order" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
       },
-      "required": ["id", "code", "title", "description", "imageUrl", "technologies", "sortOrder"]
+      "required": ["id", "title", "description", "imageBase64"]
     }
   },
   "firestore": {
-    "/siteContent/hero": {
+    "/siteContent/main": {
       "schema": "HeroContent",
-      "description": "Master document representing hero text and branding image details"
+      "description": "Document representing hero texts and base64 background details"
     },
     "/experiences/{experienceId}": {
       "schema": "ExperienceItem",
@@ -83,9 +86,9 @@
       "schema": "AwardItem",
       "description": "Collection of achievements and tournament rankings"
     },
-    "/projects/{projectId}": {
-      "schema": "ProjectItem",
-      "description": "Collection of actual showcased robot works with details and images"
+    "/portfolioItems/{itemId}": {
+      "schema": "PortfolioItem",
+      "description": "Collection of actual showcased robot works with details and Base64 images"
     }
   }
 }
