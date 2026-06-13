@@ -50,3 +50,13 @@ body {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+@utility px-margin-mobile {
+  padding-left: 1.5rem; /* 24px */
+  padding-right: 1.5rem;
+}
+
+@utility px-margin-desktop {
+  padding-left: 4.5rem; /* 72px */
+  padding-right: 4.5rem;
+}

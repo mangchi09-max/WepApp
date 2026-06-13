@@ -20,6 +20,12 @@ service cloud.firestore {
         && data.heroImageBase64 is string && data.heroImageBase64.size() <= 2000000;
     }
 
+    // Password settings validation
+    function isValidPasswordSettings(data) {
+      return data.keys().hasAll(['password'])
+        && data.password is string && data.password.size() <= 256;
+    }
+
     // Experience validation
     function isValidExperience(data) {
       return data.keys().hasAll(['id', 'title', 'description', 'sortOrder'])
@@ -54,7 +60,8 @@ service cloud.firestore {
     // Rules for Collections
     match /siteContent/{documentId} {
       allow read: if true;
-      allow write: if (documentId == 'hero' || documentId == 'main') && isValidHero(request.resource.data);
+      allow write: if ((documentId == 'hero' || documentId == 'main') && isValidHero(request.resource.data))
+        || (documentId == 'passwordSettings' && isValidPasswordSettings(request.resource.data));
     }
 
     match /experiences/{experienceId} {

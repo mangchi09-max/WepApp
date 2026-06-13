@@ -48,6 +48,7 @@ export default function EditModal({
   const [skillForm, setSkillForm] = useState<Partial<SkillItem>>({
     name: '',
     iconName: 'code',
+    description: '',
     sortOrder: 0
   });
 
@@ -87,7 +88,7 @@ export default function EditModal({
     } else if (type === 'experience') {
       setExperienceForm(data || { title: '', description: '', sortOrder: 0 });
     } else if (type === 'skill') {
-      setSkillForm(data || { name: '', iconName: 'code', sortOrder: 0 });
+      setSkillForm(data || { name: '', iconName: 'code', description: '', sortOrder: 0 });
     } else if (type === 'award') {
       setAwardForm(data || { title: '', category: 'AWARD', sortOrder: 0 });
     } else if (type === 'project') {
@@ -362,6 +363,17 @@ export default function EditModal({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">기술 상세 세부 설명 (description)</label>
+                <textarea 
+                  rows={3}
+                  value={skillForm.description || ''}
+                  onChange={e => setSkillForm({ ...skillForm, description: e.target.value })}
+                  className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-sm rounded-lg p-2.5 outline-none leading-relaxed"
+                  placeholder="예: C 언어로 라인 트레이서 주행을 최적화하고 속도를 프로그래밍할 수 있습니다."
+                />
               </div>
 
               <div>

@@ -9,6 +9,7 @@ export interface SkillItem {
   id: string;
   name: string;
   iconName: string;
+  description?: string;
   sortOrder: number;
 }
 

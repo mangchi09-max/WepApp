@@ -9,6 +9,7 @@ import {
   X, 
   Loader2, 
   Eye, 
+  EyeOff,
   Info,
   Sliders,
   Menu,
@@ -52,11 +53,21 @@ export default function App() {
 
   // Admin Verification States
   const [rawPassword, setRawPassword] = useState<string>('');
+  const [customPassword, setCustomPassword] = useState<string>('1234');
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
+  const [showPasswordHint, setShowPasswordHint] = useState<boolean>(false);
   const [passwordError, setPasswordError] = useState<string>('');
   const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
     return sessionStorage.getItem('portfolio_admin_authorized') === 'true';
   });
+
+  // Password Modification States
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState<boolean>(false);
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState<string>('');
+  const [passwordChangeError, setPasswordChangeError] = useState<string>('');
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState<string>('');
 
   // Editor Modal Control
   const [activeModal, setActiveModal] = useState<'hero' | 'experience' | 'skill' | 'award' | 'project' | null>(null);
@@ -101,6 +112,18 @@ export default function App() {
         setPermissionMessage('Firestore 접근 권한이 부족합니다. 읽기 전용 모드로 실행합니다.');
       }
       setLoadingDb(false);
+    });
+
+    // Listen to custom Password Settings
+    const unsubscribePassword = onSnapshot(doc(db, 'siteContent', 'passwordSettings'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && typeof data.password === 'string') {
+          setCustomPassword(data.password);
+        }
+      }
+    }, (error) => {
+      console.warn('PasswordSettings loading failed (this is normal if not initialized on database yet):', error);
     });
 
     // Listen to Experiences
@@ -175,6 +198,7 @@ export default function App() {
     return () => {
       window.removeEventListener('scroll', handleScroll);
       unsubscribeHero();
+      unsubscribePassword();
       unsubscribeExp();
       unsubscribeSkills();
       unsubscribeAwards();
@@ -182,11 +206,10 @@ export default function App() {
     };
   }, []);
 
-  // 2. Admin Verification (Password '1234')
+  // 2. Admin Verification
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const ADMIN_PASSWORD = "1234";
-    if (rawPassword === ADMIN_PASSWORD) {
+    if (rawPassword === customPassword) {
       setIsAdminMode(true);
       sessionStorage.setItem('portfolio_admin_authorized', 'true');
       setIsPasswordModalOpen(false);
@@ -318,7 +341,7 @@ export default function App() {
       )}
 
       {/* 1. ADMIN HEADER BAR */}
-      {isAdminMode && <AdminBar onExit={handleExitAdmin} />}
+      {isAdminMode && <AdminBar onExit={handleExitAdmin} onPasswordChangeClick={() => setIsChangePasswordOpen(true)} />}
 
       {/* 2. NAVIGATION BAR */}
       <nav className={`fixed left-0 right-0 z-40 transition-all duration-300 ${
@@ -617,29 +640,42 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {portfolio.skills.map((skill) => (
               <div 
                 key={skill.id} 
-                className="glass-panel px-6 py-3.5 rounded-full border-primary/20 flex items-center gap-2.5 hover:bg-primary/10 hover:border-primary/50 transition-colors duration-300 group cursor-default relative"
+                className="glass-panel p-5 rounded-xl border-white/5 flex flex-col justify-between hover:bg-white/5 hover:border-primary/30 transition-all duration-300 group cursor-default relative shadow-md"
               >
-                <CustomLucideIcon name={skill.iconName || 'code'} className="text-primary group-hover:rotate-12 transition-transform" size={16} />
-                <span className="text-label-md text-on-surface tracking-wider font-semibold font-mono uppercase">
-                  {skill.name}
-                </span>
-
                 {isAdminMode && (
                   <button
                     onClick={() => {
                       setSelectedData(skill);
                       setActiveModal('skill');
                     }}
-                    className="absolute -top-2 -right-2 bg-primary hover:bg-primary-fixed text-on-primary p-1 rounded-full transition-all scale-0 group-hover:scale-100 shadow scale-up ease-out"
-                    title="편집"
+                    className="absolute top-3 right-3 bg-primary hover:bg-primary-fixed text-on-primary p-1.5 rounded-lg transition-all scale-0 group-hover:scale-100 shadow scale-up ease-out z-10"
+                    title="기술 편집"
                   >
-                    <Edit size={10} />
+                    <Edit size={12} />
                   </button>
                 )}
+                
+                <div>
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300">
+                    <CustomLucideIcon name={skill.iconName || 'code'} className="text-primary text-glow" size={18} />
+                  </div>
+                  <h3 className="text-label-lg text-on-surface font-bold tracking-wider font-mono uppercase mb-2">
+                    {skill.name}
+                  </h3>
+                  {skill.description ? (
+                    <p className="text-xs text-on-surface-variant leading-relaxed">
+                      {skill.description}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-outline-variant italic">
+                      상세 설명이 비어 있습니다. 관리자 모드에서 상세 설명을 추가해 보세요.
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -880,15 +916,25 @@ export default function App() {
                 <label className="text-[10px] uppercase font-mono tracking-widest text-outline block mb-1">
                   Manager Password
                 </label>
-                <input 
-                  type="password"
-                  value={rawPassword}
-                  onChange={e => setRawPassword(e.target.value)}
-                  className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-center tracking-widest rounded-lg p-2.5 p-y-3 outline-none text-white text-md font-bold"
-                  placeholder="••••"
-                  autoFocus
-                  required
-                />
+                <div className="relative">
+                  <input 
+                    type={isPasswordVisible ? "text" : "password"}
+                    value={rawPassword}
+                    onChange={e => setRawPassword(e.target.value)}
+                    className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-center tracking-widest rounded-lg p-2.5 pr-10 outline-none text-white text-md font-bold"
+                    placeholder="••••"
+                    autoFocus
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsPasswordVisible(!isPasswordVisible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-white"
+                    title={isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기'}
+                  >
+                    {isPasswordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               {passwordError && (
@@ -897,15 +943,129 @@ export default function App() {
                 </p>
               )}
 
-              <p className="text-[10px] text-outline-variant text-center leading-normal leading-relaxed">
-                테스트 또는 관리 평가를 위해 비밀번호 <span className="font-bold underline text-primary">1234</span>를 입력하십시오.
-              </p>
+              <div className="text-center py-1">
+                <button 
+                  type="button" 
+                  onClick={() => setShowPasswordHint(!showPasswordHint)}
+                  className="text-[10px] text-outline hover:text-primary transition-colors focus:outline-none underline"
+                >
+                  {showPasswordHint ? '평가용 안내 숨기기' : '평가용 기본 비밀번호 안내 보기'}
+                </button>
+                {showPasswordHint && (
+                  <p className="text-[10px] text-outline-variant mt-2 leading-relaxed animate-fade-in">
+                    현재 비밀번호는 <span className="font-bold underline text-primary">{customPassword}</span> 입니다. (관리자 로그인 후 비밀번호 수정 가능)
+                  </p>
+                )}
+              </div>
 
               <button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary-fixed-dim text-on-primary font-bold py-2.5 rounded-lg text-xs leading-none tracking-wide transition-all uppercase"
               >
                 인증 및 편집 시작
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5.5 ADMINISTRATOR PASSWORD CHANGE MODAL */}
+      {isChangePasswordOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsChangePasswordOpen(false)} />
+          
+          <div className="relative glass-panel rounded-xl max-w-sm w-full p-6 text-on-surface animate-scaleUp">
+            <button 
+              onClick={() => setIsChangePasswordOpen(false)} 
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-white"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="h-10 w-10 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Shield size={18} className="animate-pulse" />
+              </div>
+              <h3 className="text-md font-space font-bold text-glow tracking-wider text-amber-500 uppercase">
+                비밀번호 수정
+              </h3>
+              <p className="text-xs text-on-surface-variant mt-1.5">
+                관리자 모드 접속 비밀번호를 새로운 설정으로 변경합니다.
+              </p>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (newPassword.length < 4) {
+                setPasswordChangeError('비밀번호는 최소 4글자 이상이어야 합니다.');
+                return;
+              }
+              if (newPassword !== newPasswordConfirm) {
+                setPasswordChangeError('새 비밀번호가 일치하지 않습니다.');
+                return;
+              }
+              
+              setPasswordChangeError('');
+              setPasswordChangeSuccess('');
+              try {
+                await setDoc(doc(db, 'siteContent', 'passwordSettings'), { password: newPassword });
+                setPasswordChangeSuccess('비밀번호가 성공적으로 변경되었습니다!');
+                setNewPassword('');
+                setNewPasswordConfirm('');
+                setTimeout(() => {
+                  setIsChangePasswordOpen(false);
+                  setPasswordChangeSuccess('');
+                }, 1500);
+              } catch (err) {
+                handleFirestoreError(err, OperationType.WRITE, 'siteContent/passwordSettings');
+                setPasswordChangeError('비밀번호를 변경하는 중 오류가 발생했습니다.');
+              }
+            }} className="space-y-4">
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-widest text-outline block mb-1">
+                  새 비밀번호 입력
+                </label>
+                <input 
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-center tracking-widest rounded-lg p-2.5 outline-none text-white text-md font-bold"
+                  placeholder="••••"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-widest text-outline block mb-1">
+                  새 비밀번호 확인
+                </label>
+                <input 
+                  type="password"
+                  value={newPasswordConfirm}
+                  onChange={e => setNewPasswordConfirm(e.target.value)}
+                  className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-center tracking-widest rounded-lg p-2.5 outline-none text-white text-md font-bold"
+                  placeholder="••••"
+                  required
+                />
+              </div>
+
+              {passwordChangeError && (
+                <p className="text-[11px] text-error font-medium text-center bg-error/10 border border-error/20 p-2 rounded-lg animate-shake">
+                  {passwordChangeError}
+                </p>
+              )}
+
+              {passwordChangeSuccess && (
+                <p className="text-[11px] text-green-400 font-medium text-center bg-green-500/10 border border-green-500/20 p-2 rounded-lg">
+                  {passwordChangeSuccess}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary-fixed-dim text-on-primary font-bold py-2.5 rounded-lg text-xs leading-none tracking-wide transition-all uppercase"
+              >
+                비밀번호 변경 완료
               </button>
             </form>
           </div>
