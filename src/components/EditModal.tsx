@@ -453,25 +453,25 @@ export default function EditModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">프로젝트 기술 태그 (콤마로 구분)</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">프로젝트 기술 태그 (쉼표로 구분)</label>
                 <input 
                   type="text" 
                   value={techString}
                   onChange={e => setTechString(e.target.value)}
                   className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-sm rounded-lg p-2.5 outline-none font-mono text-primary"
-                  placeholder="Silicon, Arduino, C Coding, CNC"
+                  placeholder="실리콘, 아두이노, C 코딩, CNC"
                 />
-                <span className="text-[9px] text-outline-variant mt-1 block">각 태그는 콤마(,)로 적으면 멋진 리스트 모양의 뱃지로 랜더링됩니다.</span>
+                <span className="text-[9px] text-outline-variant mt-1 block">각 태그를 쉼표(,)로 구분해 입력하면 카드 하단에 기술 뱃지로 표시됩니다.</span>
               </div>
 
               <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">설명 문구 (description)</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">설명 문구 (화면 표시 설명)</label>
                 <textarea 
-                  rows={2}
+                  rows={3}
                   value={projectForm.description}
                   onChange={e => setProjectForm({ ...projectForm, description: e.target.value })}
                   className="w-full bg-surface-container/60 border border-white/10 focus:border-primary/50 text-sm rounded-lg p-2.5 outline-none"
-                  placeholder="어떤 기능을 구현했는지 상세하게 기록하세요."
+                  placeholder="화면에 표시될 프로젝트 상세 설명 문구를 입력하세요."
                   required
                 />
               </div>
@@ -485,7 +485,7 @@ export default function EditModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">정렬 가중치</label>
+                <label className="text-[11px] font-mono tracking-widest text-outline uppercase block mb-1">정렬 순서 (숫자)</label>
                 <input 
                   type="number" 
                   value={projectForm.sortOrder}
@@ -531,10 +531,15 @@ export default function EditModal({
                     <Loader2 className="animate-spin" size={13} />
                     <span>저장 중...</span>
                   </>
+                ) : success ? (
+                  <>
+                    <Check size={13} />
+                    <span>저장 완료!</span>
+                  </>
                 ) : (
                   <>
                     <Check size={13} />
-                    <span>저장 및 동기화</span>
+                    <span>저장하기</span>
                   </>
                 )}
               </button>

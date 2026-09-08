@@ -243,6 +243,18 @@ export default function App() {
           heroImageBase64: updatedData.heroImageBase64 || '',
           updatedAt: new Date().toISOString()
         };
+        // Optimistically update hero state
+        setPortfolio(prev => ({
+          ...prev,
+          hero: {
+            tag: payload.tag,
+            title: payload.heroTitle,
+            highlight: payload.highlight,
+            description: payload.heroDescription,
+            descriptionPara2: payload.descriptionPara2,
+            imageUrl: payload.heroImageBase64 || prev.hero.imageUrl
+          }
+        }));
         await setDoc(doc(db, 'siteContent', 'main'), payload);
       } else if (activeModal === 'project') {
         const itemId = updatedData.id || `proj_${Date.now()}`;
@@ -251,36 +263,78 @@ export default function App() {
           code: updatedData.code || '',
           title: updatedData.title || '',
           description: updatedData.description || '',
-          imageBase64: updatedData.imageBase64 || '', // imageBase64 saved to Firestore
+          imageBase64: updatedData.imageBase64 || '',
           technologies: updatedData.technologies || [],
           sortOrder: updatedData.sortOrder || 0,
           createdAt: updatedData.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
-        await setDoc(doc(db, 'portfolioItems', itemId), payload);
-      } else {
-        const collectionName = {
-          experience: 'experiences',
-          skill: 'skills',
-          award: 'awards'
-        }[activeModal!];
 
-        if (collectionName) {
-          if (updatedData.id) {
-            await setDoc(doc(db, collectionName, updatedData.id), updatedData);
+        // Optimistically update projects state immediately so modal description matches screen display without lag
+        setPortfolio(prev => {
+          const updatedItem: ProjectItem = {
+            id: itemId,
+            code: payload.code,
+            title: payload.title,
+            description: payload.description,
+            imageUrl: payload.imageBase64 || FALLBACK_IMAGE,
+            technologies: payload.technologies,
+            sortOrder: payload.sortOrder
+          };
+          const existingIdx = prev.projects.findIndex(p => p.id === itemId);
+          if (existingIdx >= 0) {
+            const nextProjects = [...prev.projects];
+            nextProjects[existingIdx] = updatedItem;
+            return { ...prev, projects: nextProjects };
           } else {
-            const docId = `${collectionName}_${Date.now()}`;
-            await setDoc(doc(db, collectionName, docId), {
-              ...updatedData,
-              id: docId
-            });
+            return { ...prev, projects: [updatedItem, ...prev.projects] };
           }
-        }
+        });
+
+        await setDoc(doc(db, 'portfolioItems', itemId), payload);
+      } else if (activeModal === 'experience') {
+        const docId = updatedData.id || `experiences_${Date.now()}`;
+        const payload = { ...updatedData, id: docId };
+        setPortfolio(prev => {
+          const idx = prev.experiences.findIndex(e => e.id === docId);
+          if (idx >= 0) {
+            const next = [...prev.experiences];
+            next[idx] = payload;
+            return { ...prev, experiences: next };
+          }
+          return { ...prev, experiences: [...prev.experiences, payload] };
+        });
+        await setDoc(doc(db, 'experiences', docId), payload);
+      } else if (activeModal === 'skill') {
+        const docId = updatedData.id || `skills_${Date.now()}`;
+        const payload = { ...updatedData, id: docId };
+        setPortfolio(prev => {
+          const idx = prev.skills.findIndex(s => s.id === docId);
+          if (idx >= 0) {
+            const next = [...prev.skills];
+            next[idx] = payload;
+            return { ...prev, skills: next };
+          }
+          return { ...prev, skills: [...prev.skills, payload] };
+        });
+        await setDoc(doc(db, 'skills', docId), payload);
+      } else if (activeModal === 'award') {
+        const docId = updatedData.id || `awards_${Date.now()}`;
+        const payload = { ...updatedData, id: docId };
+        setPortfolio(prev => {
+          const idx = prev.awards.findIndex(a => a.id === docId);
+          if (idx >= 0) {
+            const next = [...prev.awards];
+            next[idx] = payload;
+            return { ...prev, awards: next };
+          }
+          return { ...prev, awards: [...prev.awards, payload] };
+        });
+        await setDoc(doc(db, 'awards', docId), payload);
       }
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `write/${activeModal}`);
-    } finally {
-      setActiveModal(null);
+      throw err;
     }
   };
 
@@ -290,21 +344,33 @@ export default function App() {
       return;
     }
 
+    const currentModal = activeModal;
     const collectionName = {
       experience: 'experiences',
       skill: 'skills',
       award: 'awards',
-      project: 'portfolioItems' // Correct collection name
-    }[activeModal!];
+      project: 'portfolioItems'
+    }[currentModal!];
 
     if (!collectionName) return;
 
     try {
+      if (currentModal === 'project') {
+        setPortfolio(prev => ({ ...prev, projects: prev.projects.filter(p => p.id !== id) }));
+      } else if (currentModal === 'experience') {
+        setPortfolio(prev => ({ ...prev, experiences: prev.experiences.filter(e => e.id !== id) }));
+      } else if (currentModal === 'skill') {
+        setPortfolio(prev => ({ ...prev, skills: prev.skills.filter(s => s.id !== id) }));
+      } else if (currentModal === 'award') {
+        setPortfolio(prev => ({ ...prev, awards: prev.awards.filter(a => a.id !== id) }));
+      }
       await deleteDoc(doc(db, collectionName, id));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `${collectionName}/${id}`);
+      throw err;
     } finally {
       setActiveModal(null);
+      setSelectedData(null);
     }
   };
 
@@ -386,9 +452,12 @@ export default function App() {
           <div className="flex items-center gap-3">
             {!isAdminMode ? (
               <button
-                onClick={() => setIsPasswordModalOpen(true)}
+                onClick={() => {
+                  setIsAdminMode(true);
+                  sessionStorage.setItem('portfolio_admin_authorized', 'true');
+                }}
                 className="text-primary-fixed-dim hover:text-white p-2 text-xs font-mono font-bold flex items-center gap-1 bg-primary/10 border border-primary/20 hover:border-primary/50 py-1.5 px-3 rounded-lg transition-all"
-                title="관리자 인증"
+                title="관리자 모드 활성화"
               >
                 <Lock size={13} />
                 <span>ADMIN LOCK</span>
@@ -833,7 +902,7 @@ export default function App() {
                         <h3 className="text-headline-md font-space font-semibold text-primary mb-2">
                           {proj.title}
                         </h3>
-                        <p className="text-body-md text-on-surface-variant/90 leading-relaxed max-w-2xl break-all">
+                        <p className="text-body-md text-on-surface-variant/90 leading-relaxed max-w-2xl break-all whitespace-pre-line">
                           {proj.description}
                         </p>
                       </div>
