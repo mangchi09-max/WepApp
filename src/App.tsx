@@ -396,7 +396,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-on-background font-sans relative">
+    <div translate="no" className="notranslate min-h-screen flex flex-col bg-background text-on-background font-sans relative">
       
       {/* 0. SECURITY READ-ONLY MODE WARNING BANNER */}
       {isReadOnlyMode && (
@@ -422,17 +422,17 @@ export default function App() {
         <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-20">
           <a href="#" className="font-space text-headline-md font-bold text-primary flex items-center gap-2 group">
             <Sliders className="text-primary group-hover:rotate-180 transition-transform duration-500" size={24} />
-            <span className="text-glow tracking-tight">Robot Portfolio</span>
+            <span className="text-glow tracking-tight">로봇 포트폴리오</span>
           </a>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6 lg:gap-10">
             {[
-              { id: 'about', label: 'About' },
-              { id: 'experience', label: 'Experience' },
-              { id: 'skills', label: 'Skills' },
-              { id: 'certifications', label: 'Certifications & Awards' },
-              { id: 'portfolio', label: 'Portfolio' }
+              { id: 'about', label: '소개' },
+              { id: 'experience', label: '경험' },
+              { id: 'skills', label: '기술' },
+              { id: 'certifications', label: '자격 및 수상' },
+              { id: 'portfolio', label: '포트폴리오' }
             ].map(item => (
               <a 
                 key={item.id}
@@ -460,7 +460,7 @@ export default function App() {
                 title="관리자 모드 활성화"
               >
                 <Lock size={13} />
-                <span>ADMIN LOCK</span>
+                <span>관리자 모드</span>
               </button>
             ) : (
               <button
@@ -468,7 +468,7 @@ export default function App() {
                 className="text-amber-400 hover:text-white p-2 text-xs font-mono font-bold flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/50 py-1.5 px-3 rounded-lg transition-all"
               >
                 <Shield size={13} className="animate-pulse" />
-                <span>EDIT READY</span>
+                <span>편집 활성</span>
               </button>
             )}
 
@@ -487,11 +487,11 @@ export default function App() {
         {isMobileMenuOpen && (
           <div className="md:hidden glass-panel border-t-0 p-4 shrink-0 flex flex-col items-center gap-3 animate-fade-in">
             {[
-              { id: 'about', label: 'About' },
-              { id: 'experience', label: 'Experience' },
-              { id: 'skills', label: 'Skills' },
-              { id: 'certifications', label: 'Certifications & Awards' },
-              { id: 'portfolio', label: 'Portfolio' }
+              { id: 'about', label: '소개' },
+              { id: 'experience', label: '경험' },
+              { id: 'skills', label: '기술' },
+              { id: 'certifications', label: '자격 및 수상' },
+              { id: 'portfolio', label: '포트폴리오' }
             ].map(item => (
               <a 
                 key={item.id}
@@ -597,7 +597,7 @@ export default function App() {
             <div>
               <h2 className="text-headline-lg font-space font-bold text-on-surface flex items-center gap-3">
                 <History className="text-primary" size={28} />
-                <span>Experience</span>
+                <span>활동 경험</span>
               </h2>
               <p className="text-body-md text-on-surface-variant mt-2">로봇 수업과 프로젝트를 통해 경험한 활동들을 정리했습니다.</p>
             </div>
@@ -690,7 +690,7 @@ export default function App() {
             <div>
               <h2 className="text-headline-lg font-space font-bold text-on-surface flex items-center gap-3">
                 <Sliders className="text-primary" size={28} />
-                <span>Skills</span>
+                <span>기술 역량</span>
               </h2>
               <p className="text-body-md text-on-surface-variant mt-2">로봇 프로젝트를 진행하며 배운 기술과 역량입니다.</p>
             </div>
@@ -757,7 +757,7 @@ export default function App() {
             <div>
               <h2 className="text-headline-lg font-space font-bold text-on-surface flex items-center gap-3">
                 <Award className="text-primary" size={28} />
-                <span>Certifications &amp; Awards</span>
+                <span>자격 및 수상</span>
               </h2>
               <p className="text-body-md text-on-surface-variant mt-2">로봇 대회 참가 및 수상 내용을 정리했습니다.</p>
             </div>
@@ -818,7 +818,7 @@ export default function App() {
             <div>
               <h2 className="text-headline-lg font-space font-bold text-on-surface flex items-center gap-3">
                 <Grid className="text-primary" size={28} />
-                <span>Portfolio</span>
+                <span>포트폴리오</span>
               </h2>
               <p className="text-body-md text-on-surface-variant mt-2">완성한 로봇 프로젝트와 웹앱 결과물을 소개합니다.</p>
             </div>
@@ -843,7 +843,8 @@ export default function App() {
               return (
                 <div 
                   key={proj.id} 
-                  className={`glass-panel rounded-xl overflow-hidden group hover:border-primary/50 transition-all hover:shadow-[0_0_35px_rgba(0,210,255,0.15)] flex flex-col h-full relative ${
+                  translate="no"
+                  className={`notranslate glass-panel rounded-xl overflow-hidden group hover:border-primary/50 transition-all hover:shadow-[0_0_35px_rgba(0,210,255,0.15)] flex flex-col h-full relative ${
                     isFullWidthSpan ? 'md:col-span-3' : ''
                   }`}
                 >
@@ -899,21 +900,22 @@ export default function App() {
                     {/* Card text details */}
                     <div className="p-6 flex-1 flex flex-col justify-between">
                       <div>
-                        <h3 className="text-headline-md font-space font-semibold text-primary mb-2">
+                        <h3 translate="no" className="notranslate text-headline-md font-space font-semibold text-primary mb-2">
                           {proj.title}
                         </h3>
-                        <p className="text-body-md text-on-surface-variant/90 leading-relaxed max-w-2xl break-all whitespace-pre-line">
+                        <p translate="no" className="notranslate text-body-md text-on-surface-variant/90 leading-relaxed max-w-2xl break-all whitespace-pre-line">
                           {proj.description}
                         </p>
                       </div>
 
                       <div className="mt-6 border-t border-white/5 pt-4">
-                        <p className="text-[10px] font-mono tracking-widest text-outline uppercase mb-2">Technologies</p>
-                        <div className="flex flex-wrap gap-1.5">
+                        <p className="text-[10px] font-mono tracking-widest text-outline uppercase mb-2">기술 (Technologies)</p>
+                        <div translate="no" className="notranslate flex flex-wrap gap-1.5">
                           {proj.technologies.map(tech => (
                             <span 
                               key={tech} 
-                              className="bg-primary/5 hover:bg-primary/10 border border-primary/20 text-primary text-[10px] px-2.5 py-1 rounded-md font-semibold tracking-wide font-mono transition-colors"
+                              translate="no"
+                              className="notranslate bg-primary/5 hover:bg-primary/10 border border-primary/20 text-primary text-[10px] px-2.5 py-1 rounded-md font-semibold tracking-wide font-mono transition-colors"
                             >
                               {tech}
                             </span>

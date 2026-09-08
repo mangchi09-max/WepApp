@@ -1,6 +1,6 @@
 {
-  "name": "My Robot Portfolio",
-  "description": "An interactive, real-time-synced robot portfolio showcase where administrators can edit text content and upload images directly through the web interface.",
+  "name": "로봇 포트폴리오",
+  "description": "로봇 제작 및 코딩 프로젝트 포트폴리오 웹앱",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
